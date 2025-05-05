@@ -1,0 +1,51 @@
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-plants}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql_init:/docker-entrypoint-initdb.d
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-03T14-56-28Z-cpuv1
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+
+
+  airflow:
+    image: apache/airflow:slim-2.10.0rc1-python3.10
+    container_name: airflow
+    restart: always
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-LocalExecutor}
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_ALCHEMY_CONN:-mysql+pymysql://root:root@mysql:3306/plants}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: ${AIRFLOW_DAGS_PAUSED:-true}
+      AIRFLOW__WEBSERVER__RBAC: ${AIRFLOW_RBAC:-true}
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-mysql
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "airflow db init &&
+               airflow users create --username ${AIRFLOW_USERNAME:-admin} --password ${AIRFLOW_PASSWORD:-admin} --firstname Admin --lastname User --role Admin --email ${AIRFLOW_EMAIL:-admin@example.com} &&
+               airflow scheduler & airflow webserver"
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+  minio_data:
