@@ -1,51 +1,252 @@
 services:
-  mysql:
-    image: mysql:8
-    container_name: mysql
+  
+  postgres:
+    image: postgres:13
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-plants}
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
     ports:
-      - "3306:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql_init:/docker-entrypoint-initdb.d
+      - postgres-db-volume:/var/lib/postgresql/data
+
+  
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-plants}
+      MYSQL_USER: ${MYSQL_USER:-plants_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql-db-volume:/var/lib/mysql
+      - ./sql/init_mysql.sql:/docker-entrypoint-initdb.d/init_mysql.sql:ro
+  
+  airflow-init:
+    build:
+      context: ./airflow
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-airflow}:${POSTGRES_PASSWORD:-airflow}@postgres/${POSTGRES_DB:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+    command: >
+      bash -c "airflow db migrate &&
+               airflow users create -u ${AIRFLOW_USERNAME:-airflow} -f Manoel -l TOUSSI -r Admin -e ${AIRFLOW_EMAIL:-contact@airflow.com} -p ${AIRFLOW_PASSWORD}"
+    volumes:
+      - ./airflow/logs:/opt/airflow/logs
+
+  
+  airflow-webserver:
+    build:
+      context: ./airflow
+    depends_on:
+      - airflow-init
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./ml:/opt/airflow/ml
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT:-8080}:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-airflow}:${POSTGRES_PASSWORD:-airflow}@postgres/${POSTGRES_DB:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY} 
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY} 
+      MLFLOW_S3_ENDPOINT_URL: http://minio:${MINIO_API_PORT:-9000}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    command: webserver
+  
+  airflow-scheduler:
+    build:
+      context: ./airflow
+    depends_on:
+      - airflow-init
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./ml:/opt/airflow/ml
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-airflow}:${POSTGRES_PASSWORD:-airflow}@postgres/${POSTGRES_DB:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY} 
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
+      MLFLOW_TRACKING_URI: http://mlflow:5000 
+      MLFLOW_S3_ENDPOINT_URL: http://minio:${MINIO_API_PORT:-9000}
+    command: scheduler
 
   minio:
     image: minio/minio:RELEASE.2025-04-03T14-56-28Z-cpuv1
-    container_name: minio
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
-      - minio_data:/data
+      - minio-data:/data
 
-
-  airflow:
-    image: apache/airflow:slim-2.10.0rc1-python3.10
-    container_name: airflow
-    restart: always
-    environment:
-      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR:-LocalExecutor}
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: ${AIRFLOW_SQL_ALCHEMY_CONN:-mysql+pymysql://root:root@mysql:3306/plants}
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: ${AIRFLOW_DAGS_PAUSED:-true}
-      AIRFLOW__WEBSERVER__RBAC: ${AIRFLOW_RBAC:-true}
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-mysql
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
+  #minio-bucket-setup:
+   # image: minio/mc:RELEASE.2025-05-21T01-59-54Z-cpuv1
+    #depends_on:
+     # - minio
+    #entrypoint: >
+     # /bin/sh -c "
+      #sleep 10;
+      #/usr/bin/mc config host add minio http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
+      #/usr/bin/mc mb raw-data --ignore-existing;
+      #/usr/bin/mc mb models --ignore-existing;
+      #/usr/bin/mc mb mlflow --ignore-existing;
+      #echo 'Buckets created successfully';"
+  
+  api:
+    build:
+      context: ./api
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8000}:8000"
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:${MINIO_API_PORT:-9000}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      - mlflow
+      - minio
+    volumes:
+      - ./api:/app
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "prometheus.io/path=/metrics"
+
+  mlflow:
+    image: python:3.10-slim
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
     command: >
-      bash -c "airflow db init &&
-               airflow users create --username ${AIRFLOW_USERNAME:-admin} --password ${AIRFLOW_PASSWORD:-admin} --firstname Admin --lastname User --role Admin --email ${AIRFLOW_EMAIL:-admin@example.com} &&
-               airflow scheduler & airflow webserver"
+      bash -c "pip install mlflow boto3 pymysql psycopg2-binary &&
+               mlflow server --host 0.0.0.0
+               --backend-store-uri mysql+pymysql://${MYSQL_USER:-plants_user}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-plants}
+               --default-artifact-root s3://${MINIO_BUCKET_NAME:-mlflow}/"
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:${MINIO_API_PORT:-9000}
     depends_on:
       - mysql
+      - minio
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=5000"
+      - "prometheus.io/path=/metrics"
+
+
+  webapp:
+    build:
+      context: ./webapp
+    ports:
+      - "${WEBAPP_PORT:-8501}:8501"
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      - api
+    volumes:
+      - ./webapp:/app
+    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+
+  prometheus:
+    image: prom/prometheus:v3.4.1
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - node-exporter
+      - cadvisor
+      - statsd-exporter
+
+  grafana:
+    image: grafana/grafana:grafana:12.0.2
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:8.2-m01-alpine3.22
+    ports:
+      - "6379:6379"
+
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.27.2
+    ports:
+      - "9125:9125/udp"
+      - "9102:9102"
+    volumes:
+      - ./monitoring/statsd_mapping.yml:/tmp/statsd_mapping.yml
+    command:
+      - '--statsd.mapping-config=/tmp/statsd_mapping.yml'
 
 volumes:
-  mysql_data:
-  minio_data:
+  postgres-db-volume:
+  mysql-db-volume:
+  minio-data:
+  prometheus-data:
+  grafana-data:
