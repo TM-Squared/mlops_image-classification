@@ -1,421 +1,358 @@
-# Projet MLOps : Classification d'Images - Pissenlits vs Herbe
+# 🌱 Plant Classification MLOps
 
-## 🎯 Objectif du Projet
+**Classification d'images de plantes (Pissenlit vs Herbe) avec pipeline MLOps complet**
 
-Ce projet implémente un pipeline MLOps complet pour la classification binaire d'images, distinguant les pissenlits (dandelion) de l'herbe (grass). Il démontre l'application pratique des principes MLOps avec TensorFlow, incluant l'entraînement automatisé, le déploiement, le monitoring et l'intégration continue.
+![Python](https://img.shields.io/badge/Python-3.10-blue)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-2.13-orange)
+![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-2.10.1-red)
+![Docker](https://img.shields.io/badge/Docker-Compose-blue)
+![MLflow](https://img.shields.io/badge/MLflow-2.7.1-green)
+![MinIO](https://img.shields.io/badge/MinIO-S3-yellow)
 
 ## 📋 Table des Matières
 
-- [Architecture du Projet](#architecture-du-projet)
-- [Prérequis](#prérequis)
+- [Aperçu du Projet](#aperçu-du-projet)
+- [Architecture](#architecture)
+- [Technologies Utilisées](#technologies-utilisées)
 - [Installation](#installation)
-- [Structure du Projet](#structure-du-projet)
 - [Utilisation](#utilisation)
-- [Environnements](#environnements)
-- [Pipeline MLOps](#pipeline-mlops)
-- [API et WebApp](#api-et-webapp)
-- [Monitoring](#monitoring)
+- [API Documentation](#api-documentation)
 - [Tests](#tests)
+- [Monitoring](#monitoring)
 - [Déploiement](#déploiement)
-- [Contributions](#contributions)
+- [Contribution](#contribution)
 
-## 🏗️ Architecture du Projet
+## Aperçu du Projet
+
+Ce projet implémente un pipeline MLOps complet pour la classification binaire d'images de plantes, distinguant les dandelion de l'herbe (grass). Il démontre les meilleures pratiques MLOps incluant l'automatisation, le monitoring, et le déploiement continu.
+
+### Fonctionnalités Principales
+
+- **🤖 Classification automatique** d'images avec TensorFlow/MobileNetV2
+- **📊 Pipeline d'entraînement** automatisé avec Apache Airflow
+- **🗄️ Stockage distribué** avec MinIO (compatible S3)
+- **📈 Tracking d'expériences** avec MLflow
+- **🌐 API REST** avec FastAPI
+- **💻 Interface web** avec Streamlit
+- **🔄 Entraînement continu** et déploiement automatique
+- **🐳 Containerisation** complète avec Docker
+
+## 🏗️ Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Data Source   │───▶│   Apache        │───▶│   ML Model      │
-│   (MySQL DB)    │    │   Airflow       │    │   Training      │
+│   Data Sources  │    │   Data Storage  │    │   Processing    │
+│                 │    │                 │    │                 │
+│ • GitHub URLs   │───▶│ • MinIO (S3)    │───▶│ • Apache Airflow│
+│ • Manual Upload │    │ • MySQL         │    │ • TensorFlow    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
+                                                        │
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Monitoring    │    │   CI/CD         │    │   Model         │
-│   (Prometheus)  │    │   (GitHub       │    │   Registry      │
-│                 │    │   Actions)      │    │   (S3/MLflow)   │
+│   Monitoring    │    │   Model Store   │    │   ML Training   │
+│                 │    │                 │    │                 │
+│ • MLflow UI     │◀───│ • MinIO Models  │◀───│ • Model Training│
+│ • Logs          │    │ • Model Registry│    │ • Evaluation    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
+                                                        │
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   WebApp        │    │   Kubernetes    │    │   FastAPI       │
-│   (Streamlit)   │    │   Deployment    │    │   Serving       │
+│   User Interface│    │   API Layer     │    │   Deployment    │
+│                 │    │                 │    │                 │
+│ • Streamlit App │───▶│ • FastAPI       │◀───│ • Auto Deploy   │
+│ • Web Interface │    │ • REST Endpoints│    │ • Model Serving │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🛠️ Prérequis
+## Technologies Utilisées
 
-- **Python 3.8+**
-- **Docker & Docker Compose**
-- **Kubernetes** (Minikube ou Docker Desktop)
-- **Git**
+### Machine Learning & Data
+- **TensorFlow 2.13** - Framework de deep learning
+- **MobileNetV2** - Modèle de transfer learning léger
+- **MLflow** - Tracking d'expériences et registry de modèles
+- **Pandas/NumPy** - Manipulation de données
 
-### Technologies Utilisées
+### Infrastructure & Orchestration
+- **Apache Airflow** - Orchestration de pipelines
+- **Docker & Docker Compose** - Containerisation
+- **MinIO** - Stockage objet compatible S3
+- **MySQL** - Base de données relationnelle
+- **PostgreSQL** - Base de données Airflow
 
-| Composant | Technologie |
-|-----------|-------------|
-| **ML Framework** | TensorFlow 2.x |
-| **Orchestration** | Apache Airflow |
-| **API** | FastAPI |
-| **WebApp** | Streamlit |
-| **Model Registry** | MLflow |
-| **Storage** | AWS S3 (Minio) |
-| **Database** | MySQL |
-| **Monitoring** | Prometheus + Grafana |
-| **CI/CD** | GitHub Actions |
-| **Containerization** | Docker |
-| **Deployment** | Kubernetes |
+### API & Interface
+- **FastAPI** - API REST moderne et rapide
+- **Streamlit** - Interface web interactive
+- **Uvicorn** - Serveur ASGI haute performance
+
+### DevOps & Monitoring
+- **GitHub Actions** - CI/CD (prêt pour déploiement)
+- **pytest** - Framework de tests
+- **Logging** - Monitoring et debugging
 
 ## 🚀 Installation
 
-### 1. Cloner le repository
+### Prérequis
+
+- Docker & Docker Compose
+- Git
+- 8GB RAM minimum
+- 10GB espace disque libre
+
+### Installation Rapide
 
 ```bash
-git clone https://github.com/TM-Squared/mlops_image-classification.git
-cd mlops_image-classification
+# 1. Cloner le repository
+git clone <votre-repo-url>
+cd plant-classification-mlops
+
+# 2. Créer le fichier d'environnement
+cp .env.example .env
+
+# 3. Créer les dossiers nécessaires
+mkdir -p airflow/logs models tests/data
+
+# 4. Lancer l'environnement
+docker-compose up --build -d
+
+# 5. Attendre le démarrage (2-3 minutes)
+docker-compose logs -f
 ```
 
-### 2. Environnement de développement
+### Configuration des Variables d'Environnement
+
+Modifier le fichier `.env` selon vos besoins :
 
 ```bash
-# Créer un environnement virtuel
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
+# Base de données
+POSTGRES_USER=airflow
+POSTGRES_PASSWORD=airflow123
+MYSQL_USER=plants_user
+MYSQL_PASSWORD=plants123
 
-# Installer les dépendances
-pip install -r requirements.txt
+# MinIO
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin123
+
+# Airflow
+AIRFLOW_USERNAME=admin
+AIRFLOW_PASSWORD=admin123
 ```
 
-### 3. Configuration avec Docker Compose
+## Utilisation
+
+### 1. Premier Démarrage
+
+Après le lancement, configurez les connexions Airflow :
 
 ```bash
-# Lancer l'environnement complet
-docker-compose up -d
+# Accéder à Airflow
+open http://localhost:8080
+# Login: admin / admin123
 
-# Vérifier les services
-docker-compose ps
+# Déclencher le DAG "setup_connections" pour configurer automatiquement les connexions
 ```
 
-## 📁 Structure du Projet
-
-```
-mlops_image-classification/
-├── src/
-│   ├── data/
-│   │   ├── __init__.py
-│   │   ├── data_loader.py      # Chargement des données
-│   │   └── preprocessing.py    # Préprocessing des images
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── model.py           # Définition du modèle
-│   │   └── training.py        # Entraînement
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── main.py           # FastAPI application
-│   │   └── schemas.py        # Modèles Pydantic
-│   └── utils/
-│       ├── __init__.py
-│       ├── config.py         # Configuration
-│       └── logger.py         # Logging
-├── airflow/
-│   ├── dags/
-│   │   ├── data_pipeline.py  # Pipeline d'extraction
-│   │   ├── training_pipeline.py  # Pipeline d'entraînement
-│   │   └── inference_pipeline.py # Pipeline d'inférence
-│   └── plugins/
-├── webapp/
-│   ├── app.py               # Application Streamlit
-│   └── utils.py
-├── tests/
-│   ├── unit/
-│   │   ├── test_data_loader.py
-│   │   ├── test_model.py
-│   │   └── test_api.py
-│   └── integration/
-│       └── test_pipeline.py
-├── docker/
-│   ├── Dockerfile.api
-│   ├── Dockerfile.webapp
-│   └── Dockerfile.airflow
-├── k8s/
-│   ├── namespace.yaml
-│   ├── api-deployment.yaml
-│   ├── webapp-deployment.yaml
-│   └── monitoring/
-├── monitoring/
-│   ├── prometheus/
-│   │   └── prometheus.yml
-│   └── grafana/
-│       └── dashboards/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       ├── cd.yml
-│       └── tests.yml
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
-```
-
-## 🎮 Utilisation
-
-### 1. Préparation des données
+### 2. Pipeline d'Ingestion de Données
 
 ```bash
-# Initialiser la base de données
-python src/data/init_db.py
-
-# Lancer le pipeline d'extraction
-python src/data/data_loader.py
+# Dans Airflow UI, activer et déclencher :
+# 1. "plants_data_ingestion_pipeline" - Ingestion des données
+# 2. "model_training_minio_pipeline" - Entraînement du modèle
 ```
 
-### 2. Entraînement du modèle
+### 3. Test de l'API
 
 ```bash
-# Entraînement local
-python src/models/training.py
+# Vérifier l'API
+curl http://localhost:8000/health
 
-# Ou via Airflow
-# Accéder à http://localhost:8080
-# Déclencher le DAG "training_pipeline"
+# Tester une prédiction
+curl -X POST "http://localhost:8000/predict-url" \
+  -H "Content-Type: application/json" \
+  -d '{"image_url": "https://raw.githubusercontent.com/btphan95/greenr-airflow/refs/heads/master/data/dandelion/00000000.jpg"}'
 ```
 
-### 3. Lancement de l'API
+### 4. Interface Web
 
 ```bash
-# Mode développement
-uvicorn src.api.main:app --reload --port 8000
-
-# Accéder à la documentation : http://localhost:8000/docs
+# Accéder à la WebApp
+open http://localhost:8501
 ```
 
-### 4. WebApp Streamlit
+## 🔌 API Documentation
 
-```bash
-# Lancer l'application
-streamlit run webapp/app.py
+### Endpoints Principaux
 
-# Accéder à : http://localhost:8501
-```
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/` | GET | Informations sur l'API |
+| `/health` | GET | Statut de santé |
+| `/predict` | POST | Prédiction via upload |
+| `/predict-url` | POST | Prédiction via URL |
+| `/models` | GET | Liste des modèles |
+| `/reload-model` | POST | Recharger le modèle |
 
-## 🌍 Environnements
+### Exemple d'Utilisation
 
-### Développement (Local)
-- **Services** : Docker Compose
-- **Base de données** : MySQL local
-- **Storage** : MinIO local
-- **Monitoring** : Prometheus + Grafana locaux
-
-### Production (Kubernetes)
-- **Orchestration** : Kubernetes (Minikube/Cloud)
-- **Base de données** : MySQL avec persistance
-- **Storage** : S3 compatible
-- **Monitoring** : Stack Prometheus complet
-- **Ingress** : Nginx Ingress Controller
-
-## 🔄 Pipeline MLOps
-
-### 1. Pipeline de Données (`data_pipeline.py`)
-- Extraction des images depuis les URLs
-- Validation et nettoyage des données
-- Stockage dans S3
-- Mise à jour des métadonnées
-
-### 2. Pipeline d'Entraînement (`training_pipeline.py`)
-- Chargement des données depuis S3
-- Préprocessing et augmentation
-- Entraînement du modèle TensorFlow
-- Évaluation et validation
-- Sauvegarde du modèle dans MLflow
-
-### 3. Pipeline de Déploiement (`inference_pipeline.py`)
-- Téléchargement du meilleur modèle
-- Déploiement automatique de l'API
-- Tests de santé du service
-- Monitoring des performances
-
-### 4. Entraînement Continu (CT)
-- **Triggers** :
-  - Nouvelles données disponibles
-  - Entraînement hebdomadaire programmé
-  - Dégradation des performances détectée
-- **Actions** :
-  - Ré-entraînement automatique
-  - Validation A/B testing
-  - Déploiement conditionnel
-
-## 🚦 API et WebApp
-
-### API FastAPI
-
-**Endpoints principaux :**
-- `POST /predict` : Prédiction sur une image
-- `GET /health` : Santé du service  
-- `GET /metrics` : Métriques Prometheus
-- `GET /model/info` : Informations sur le modèle
-
-**Exemple d'utilisation :**
 ```python
 import requests
 
-# Prédiction
-files = {"file": open("image.jpg", "rb")}
-response = requests.post("http://localhost:8000/predict", files=files)
-print(response.json())
+# Prédiction via URL
+response = requests.post(
+    "http://localhost:8000/predict-url",
+    params={"image_url": "https://example.com/image.jpg"}
+)
+
+result = response.json()
+print(f"Classe prédite: {result['predicted_class']}")
+print(f"Confiance: {result['confidence']:.2%}")
 ```
 
-### WebApp Streamlit
+### Documentation Interactive
 
-**Fonctionnalités :**
-- Interface de téléchargement d'images
-- Affichage des prédictions en temps réel
-- Visualisation des métriques du modèle
-- Historique des prédictions
+La documentation Swagger est disponible à : `http://localhost:8000/docs`
+
+## Tests
+
+### Lancer les Tests
+
+```bash
+# Tests unitaires
+docker-compose exec airflow-webserver python -m pytest tests/ -v
+
+# Tests d'intégration
+docker-compose exec api python -m pytest tests/ -v
+
+# Tests end-to-end
+python tests/test_e2e.py
+```
+
+### Coverage
+
+```bash
+# Générer un rapport de couverture
+docker-compose exec airflow-webserver python -m pytest tests/ --cov=ml --cov-report=html
+```
 
 ## 📊 Monitoring
 
-### Métriques Collectées
+### Interfaces de Monitoring
 
-1. **Métriques Applicatives**
-   - Nombre de prédictions
-   - Latence des requêtes
-   - Accuracy du modèle
-   - Distributions des prédictions
+- **Airflow** : `http://localhost:8080` - Monitoring des DAGs
+- **MLflow** : `http://localhost:5000` - Tracking des expériences
+- **MinIO Console** : `http://localhost:9001` - Gestion du stockage
+- **API Docs** : `http://localhost:8000/docs` - Documentation API
 
-2. **Métriques Système**
-   - Utilisation CPU/RAM
-   - Espace disque
-   - Statut des services
-
-3. **Métriques Business**
-   - Taux d'utilisation
-   - Temps de réponse utilisateur
-   - Disponibilité du service
-
-### Dashboards Grafana
-
-- **Dashboard Principal** : Vue d'ensemble des services
-- **Dashboard ML** : Métriques spécifiques au modèle
-- **Dashboard Infrastructure** : Monitoring système
-
-### Alertes
-
-- Service indisponible
-- Dégradation des performances
-- Erreurs d'entraînement
-- Espace disque faible
-
-## 🧪 Tests
-
-### Tests Unitaires
+### Logs
 
 ```bash
-# Lancer tous les tests
-pytest tests/unit/
+# Logs en temps réel
+docker-compose logs -f
 
-# Tests spécifiques
-pytest tests/unit/test_model.py -v
+# Logs spécifiques
+docker-compose logs airflow-scheduler
+docker-compose logs api
 ```
 
-### Tests d'Intégration
+### Métriques Importantes
+
+- **Précision du modèle** : Suivi dans MLflow
+- **Temps de réponse API** : Logs FastAPI
+- **Utilisation stockage** : Console MinIO
+- **Statut des DAGs** : Interface Airflow
+
+## 🚢 Déploiement
+
+### Environnement de Production
 
 ```bash
-# Tests end-to-end
-pytest tests/integration/
+# Utiliser le fichier de production
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-# Tests avec couverture
-pytest --cov=src tests/
-```
-
-### Tests de Charge
-
-```bash
-# Installer Locust
-pip install locust
-
-# Lancer les tests
-locust -f tests/load/locustfile.py --host=http://localhost:8000
-```
-
-## 🚀 Déploiement
-
-### Déploiement Local (Kubernetes)
-
-```bash
-# Démarrer Minikube
-minikube start
-
-# Déployer l'application
+# Ou déployment Kubernetes (manifests dans k8s/)
 kubectl apply -f k8s/
-
-# Vérifier les déploiements
-kubectl get pods
-kubectl get services
 ```
 
-### Déploiement Cloud (Optionnel)
+### CI/CD avec GitHub Actions
+
+Le pipeline CI/CD est configuré dans `.github/workflows/` et inclut :
+
+- Tests automatiques
+- Build et push des images Docker
+- Déploiement automatique
+- Tests de santé post-déploiement
+
+### Variables de Production
 
 ```bash
-# Configurer kubectl pour votre cluster cloud
-# Déployer avec Helm
-helm install mlops-app ./helm/mlops-chart
+# Production .env
+POSTGRES_PASSWORD=<strong-password>
+MYSQL_PASSWORD=<strong-password>
+MINIO_SECRET_KEY=<strong-secret>
+AIRFLOW_PASSWORD=<strong-password>
 ```
 
+## 🔧 Dépannage
 
-## 🤝 Contributions
+### Problèmes Courants
 
-1. **Fork** le repository
-2. **Créer** une branche feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** vos changements (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** vers la branche (`git push origin feature/AmazingFeature`)
-5. **Ouvrir** une Pull Request
+**1. Erreur de permissions MinIO**
+```bash
+# Vérifier les clés d'accès
+docker-compose logs minio
+# Recréer les connexions Airflow
+```
 
-## 📝 License
+**2. Modèle non trouvé**
+```bash
+# Vérifier les modèles dans MinIO
+curl http://localhost:8000/models
+# Relancer l'entraînement
+```
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+**3. Erreur de base de données**
+```bash
+# Réinitialiser les bases
+docker-compose down -v
+docker-compose up --build -d
+```
 
-## 👥 Équipe
+### Support
 
-- **Nom du Team** : TOUSSI Manoël Malaury
-- **Contact** : [manoel@malaurytoussi.cm]
+Pour obtenir de l'aide :
+1. Vérifiez les [issues GitHub](../../issues)
+2. Consultez les logs : `docker-compose logs`
+3. Ouvrez une nouvelle issue avec les détails
+
+## 👥 Contribution
+
+### Guide de Contribution
+
+1. Fork le projet
+2. Créer une branche feature (`git checkout -b feature/AmazingFeature`)
+3. Commit vos changements (`git commit -m 'Add AmazingFeature'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrir une Pull Request
+
+### Standards de Code
+
+- **Format** : Black pour Python
+- **Linting** : Flake8
+- **Tests** : pytest avec coverage > 80%
+- **Documentation** : Docstrings pour toutes les fonctions
+
+### Structure des Commits
+
+```
+type(scope): description
+
+- feat: nouvelle fonctionnalité
+- fix: correction de bug
+- docs: documentation
+- test: ajout de tests
+- refactor: refactoring
+```
+
+## 📄 Licence
+
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
 
-## 📚 Ressources Supplémentaires
-
-### Choix Techniques
-
-**Pourquoi TensorFlow ?**
-- Excellent support pour la classification d'images
-- Intégration native avec TensorFlow Serving
-- Écosystème mature pour la production
-
-**Pourquoi FastAPI ?**
-- Performance élevée (basé sur Starlette)
-- Documentation automatique (Swagger)
-- Validation des données native
-
-**Pourquoi Airflow ?**
-- Orchestration robuste des pipelines
-- Interface graphique intuitive
-- Gestion des dépendances complexes
-
-### Optimisations Réalisées
-
-1. **Modèle** :
-   - Transfer learning avec MobileNetV2
-   - Augmentation des données
-   - Early stopping et callbacks
-
-2. **API** :
-   - Mise en cache des modèles
-   - Traitement asynchrone
-   - Validation des entrées
-
-3. **Infrastructure** :
-   - Répartition de charge
-   - Monitoring proactif
-   - Scaling automatique
-
----
-
-*Ce README sera maintenu à jour avec les évolutions du projet. N'hésitez pas à contribuer à son amélioration !*
