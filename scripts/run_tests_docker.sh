@@ -23,15 +23,15 @@ print_error() {
 
 # Nettoyer les anciens conteneurs
 print_status "Nettoyage des anciens conteneurs de test..."
-docker-compose -f docker-compose.test.yml down -v
+docker compose -f docker-compose.test.yml down -v
 
 # Construire les images
 print_status "Construction des images de test..."
-docker-compose -f docker-compose.test.yml build
+docker compose -f docker-compose.test.yml build
 
 # Démarrer les services
 print_status "Démarrage des services de test..."
-docker-compose -f docker-compose.test.yml up -d postgres mysql minio mlflow api
+docker compose -f docker-compose.test.yml up -d postgres mysql minio mlflow api
 
 # Attendre que les services soient prêts
 print_status "Attente de la disponibilité des services..."
@@ -50,7 +50,7 @@ services=(
 
 for service in "${services[@]}"; do
     IFS=':' read -r host port <<< "$service"
-    if docker-compose -f docker-compose.test.yml exec -T test-runner nc -z $host $port; then
+    if docker compose -f docker-compose.test.yml exec -T test-runner nc -z $host $port; then
         print_success "Service $service disponible"
     else
         print_error "Service $service non disponible"
@@ -59,18 +59,18 @@ done
 
 # Lancer les tests
 print_status "Lancement des tests..."
-docker-compose -f docker-compose.test.yml run --rm test-runner
+docker compose -f docker-compose.test.yml run --rm test-runner
 
 # Capturer le code de sortie
 test_exit_code=$?
 
 # Copier les résultats de test
 print_status "Copie des résultats de test..."
-docker cp $(docker-compose -f docker-compose.test.yml ps -q test-runner):/app/test-results ./test-results 2>/dev/null || true
+docker cp $(docker compose -f docker-compose.test.yml ps -q test-runner):/app/test-results ./test-results 2>/dev/null || true
 
 # Nettoyer
 print_status "Nettoyage..."
-docker-compose -f docker-compose.test.yml down -v
+docker compose -f docker-compose.test.yml down -v
 
 # Résultats
 if [ $test_exit_code -eq 0 ]; then
