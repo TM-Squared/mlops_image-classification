@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+tensorflow
+Pillow
+numpy
+pydantic
+mlflow
+boto3
+requests
