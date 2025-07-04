@@ -1,0 +1,17 @@
+pytest
+pytest-cov
+pytest-mock
+pytest-asyncio
+pytest-html
+pytest-xdist
+
+# Mocking et fixtures
+moto
+responses
+factory-boy
+faker
+
+# API Testing
+httpx
+requests
+fastapi[test]
